@@ -7,15 +7,23 @@ import { Label } from "@/components/ui/label"
 import { Loader2 } from 'lucide-react'
 import FileUpload from './FileUpload'
 import { Card, CardContent } from "@/components/ui/card"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function ExamGenerator() {
   const [files, setFiles] = useState<{ name: string; url: string }[]>([])
   const [duration, setDuration] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedExam, setGeneratedExam] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const handleFileUpload = (uploadedFiles: { name: string; url: string }[]) => {
     setFiles(uploadedFiles)
+    if (uploadedFiles.length > 0) {
+      toast({
+        title: "Files uploaded successfully",
+        description: `${uploadedFiles.length} file(s) have been uploaded.`,
+      })
+    }
   }
 
   const handleGenerate = async () => {
@@ -38,9 +46,17 @@ export default function ExamGenerator() {
 
       const data = await response.json()
       setGeneratedExam(data.exam)
+      toast({
+        title: "Exam generated successfully",
+        description: "Your exam is ready for download.",
+      })
     } catch (error) {
       console.error('Error generating exam:', error)
-      // Handle error (e.g., show error message to user)
+      toast({
+        title: "Error generating exam",
+        description: "Please try again later.",
+        variant: "destructive",
+      })
     } finally {
       setIsGenerating(false)
     }

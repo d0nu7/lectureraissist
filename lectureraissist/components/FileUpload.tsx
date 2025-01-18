@@ -10,14 +10,19 @@ interface FileUploadProps {
   onFileUpload: (files: { name: string; url: string }[]) => void
 }
 
+const CHUNK_SIZE = 1024 * 1024 * 5 // 5MB chunks
+
 export default function FileUpload({ onFileUpload }: FileUploadProps) {
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; url: string }[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
 
-  const uploadFile = async (file: File) => {
+  const uploadChunk = async (chunk: Blob, fileName: string, chunkIndex: number, totalChunks: number) => {
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('chunk', chunk)
+    formData.append('fileName', fileName)
+    formData.append('chunkIndex', chunkIndex.toString())
+    formData.append('totalChunks', totalChunks.toString())
 
     const response = await fetch('/api/upload', {
       method: 'POST',
@@ -28,8 +33,23 @@ export default function FileUpload({ onFileUpload }: FileUploadProps) {
       throw new Error('Upload failed')
     }
 
-    const data = await response.json()
-    return { name: file.name, url: data.url }
+    return response.json()
+  }
+
+  const uploadFile = async (file: File) => {
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+    
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      const chunk = file.slice(chunkIndex * CHUNK_SIZE, (chunkIndex + 1) * CHUNK_SIZE)
+      const result = await uploadChunk(chunk, file.name, chunkIndex, totalChunks)
+      setUploadProgress((chunkIndex + 1) / totalChunks * 100)
+
+      if (result.url) {
+        return { name: file.name, url: result.url }
+      }
+    }
+
+    throw new Error('Upload failed')
   }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -42,7 +62,6 @@ export default function FileUpload({ onFileUpload }: FileUploadProps) {
       try {
         const uploadedFile = await uploadFile(file)
         uploadedFiles.push(uploadedFile)
-        setUploadProgress((i + 1) / acceptedFiles.length * 100)
       } catch (error) {
         console.error('Error uploading file:', error)
         // Handle error (e.g., show error message to user)
@@ -62,7 +81,6 @@ export default function FileUpload({ onFileUpload }: FileUploadProps) {
       'text/markdown': ['.md'],
       'text/plain': ['.txt']
     },
-    // Remove maxSize limit as we're now using Vercel Blobs
   })
 
   return (
