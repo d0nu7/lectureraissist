@@ -3,18 +3,55 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Button } from "@/components/ui/button"
-import { Upload } from 'lucide-react'
+import { Upload, Loader2 } from 'lucide-react'
+import { Progress } from "@/components/ui/progress"
 
 interface FileUploadProps {
-  onFileUpload: (files: File[]) => void
+  onFileUpload: (files: { name: string; url: string }[]) => void
 }
 
 export default function FileUpload({ onFileUpload }: FileUploadProps) {
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; url: string }[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setUploadedFiles(acceptedFiles)
-    onFileUpload(acceptedFiles)
+  const uploadFile = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error('Upload failed')
+    }
+
+    const data = await response.json()
+    return { name: file.name, url: data.url }
+  }
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    setUploading(true)
+    setUploadProgress(0)
+
+    const uploadedFiles = []
+    for (let i = 0; i < acceptedFiles.length; i++) {
+      const file = acceptedFiles[i]
+      try {
+        const uploadedFile = await uploadFile(file)
+        uploadedFiles.push(uploadedFile)
+        setUploadProgress((i + 1) / acceptedFiles.length * 100)
+      } catch (error) {
+        console.error('Error uploading file:', error)
+        // Handle error (e.g., show error message to user)
+      }
+    }
+
+    setUploadedFiles(uploadedFiles)
+    onFileUpload(uploadedFiles)
+    setUploading(false)
   }, [onFileUpload])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -25,7 +62,7 @@ export default function FileUpload({ onFileUpload }: FileUploadProps) {
       'text/markdown': ['.md'],
       'text/plain': ['.txt']
     },
-    maxSize: 200 * 1024 * 1024, // 200MB
+    // Remove maxSize limit as we're now using Vercel Blobs
   })
 
   return (
@@ -37,14 +74,24 @@ export default function FileUpload({ onFileUpload }: FileUploadProps) {
         }`}
       >
         <input {...getInputProps()} />
-        <Upload className="mx-auto h-12 w-12 text-gray-400" />
-        {isDragActive ? (
-          <p className="mt-2">Drop the files here ...</p>
+        {uploading ? (
+          <div>
+            <Loader2 className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
+            <p className="mt-2">Uploading...</p>
+            <Progress value={uploadProgress} className="w-full mt-2" />
+          </div>
         ) : (
-          <p className="mt-2">Drag &apos;n&apos; drop some files here, or click to select files</p>
+          <>
+            <Upload className="mx-auto h-12 w-12 text-gray-400" />
+            {isDragActive ? (
+              <p className="mt-2">Drop the files here ...</p>
+            ) : (
+              <p className="mt-2">Drag &apos;n&apos; drop some files here, or click to select files</p>
+            )}
+          </>
         )}
         <p className="text-sm text-gray-400 mt-2">
-          Supported file types: PDF, PPTX, MD, TXT (Max 200MB per file)
+          Supported file types: PDF, PPTX, MD, TXT
         </p>
       </div>
       {uploadedFiles.length > 0 && (
@@ -52,7 +99,11 @@ export default function FileUpload({ onFileUpload }: FileUploadProps) {
           <h4 className="text-lg font-semibold mb-2">Uploaded Files:</h4>
           <ul className="list-disc pl-5 space-y-1">
             {uploadedFiles.map((file, index) => (
-              <li key={index} className="text-gray-300">{file.name}</li>
+              <li key={index} className="text-gray-300">
+                <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400">
+                  {file.name}
+                </a>
+              </li>
             ))}
           </ul>
         </div>

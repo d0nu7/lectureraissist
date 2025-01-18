@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
-  const formData = await req.formData()
-  const files = formData.getAll('files') as File[]
-  const duration = formData.get('duration')
+  const { files, duration } = await req.json()
 
   // TODO: Implement the actual exam generation logic here
-  // This could involve calling a separate service or implementing the AI logic directly
+  // This could involve downloading the files from the provided URLs,
+  // processing them, and generating the exam content
 
   // For now, we'll return a mock response
   const mockExam = `# Generated Exam
@@ -20,7 +19,11 @@ Explain the concept of object-oriented programming.
 ## Question 3
 Describe the process of photosynthesis.
 
-Duration: ${duration} hours`
+Duration: ${duration} hours
+
+Files used:
+${files.map((file: { name: string; url: string }) => `- ${file.name} (${file.url})`).join('\n')}
+`
 
   return NextResponse.json({ exam: mockExam })
 }

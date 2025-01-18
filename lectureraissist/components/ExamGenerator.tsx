@@ -9,25 +9,27 @@ import FileUpload from './FileUpload'
 import { Card, CardContent } from "@/components/ui/card"
 
 export default function ExamGenerator() {
-  const [files, setFiles] = useState<File[]>([])
+  const [files, setFiles] = useState<{ name: string; url: string }[]>([])
   const [duration, setDuration] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedExam, setGeneratedExam] = useState<string | null>(null)
 
-  const handleFileUpload = (uploadedFiles: File[]) => {
+  const handleFileUpload = (uploadedFiles: { name: string; url: string }[]) => {
     setFiles(uploadedFiles)
   }
 
   const handleGenerate = async () => {
     setIsGenerating(true)
     try {
-      const formData = new FormData()
-      files.forEach(file => formData.append('files', file))
-      formData.append('duration', duration)
-
       const response = await fetch('/api/generate-exam', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          files,
+          duration,
+        }),
       })
 
       if (!response.ok) {
