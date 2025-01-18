@@ -14,7 +14,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const blobName = `${fileName}.part${chunkIndex}`
-    const blob = await put(blobName, chunk, {
+    await put(blobName, chunk, {
       access: 'public',
     })
 
@@ -34,8 +34,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 async function combineChunks(fileName: string, totalChunks: number) {
   const chunks = []
   for (let i = 0; i < totalChunks; i++) {
-    const chunkName = `${fileName}.part${i}`
-    const chunkBlob = await fetch(`https://${process.env.VERCEL_BLOB_STORE_ID}.public.blob.vercel-storage.com/${chunkName}`).then(res => res.blob())
+    // const chunkName = `${fileName}.part${i}`
+    const chunkBlob = await fetch(`https://${process.env.VERCEL_BLOB_STORE_ID}.public.blob.vercel-storage.com/${fileName}.part${i}`).then(res => res.blob())
     chunks.push(chunkBlob)
   }
 
@@ -44,7 +44,7 @@ async function combineChunks(fileName: string, totalChunks: number) {
 
   // Clean up chunk files
   for (let i = 0; i < totalChunks; i++) {
-    const chunkName = `${fileName}.part${i}`
+    // const chunkName = `${fileName}.part${i}`
     // Note: Implement delete function for Vercel Blob when it becomes available
     // await del(chunkName)
   }
